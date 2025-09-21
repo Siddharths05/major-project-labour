@@ -1,0 +1,578 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Instagram Fake Account Detector</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Inter', sans-serif;
+    }
+    #bgCanvas {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: -1;
+      background: radial-gradient(circle at center, #1a002d, #0a0015, #000);
+    }
+
+    .social-card {
+      transition: transform 0.3s ease, box-shadow 0.3s ease;
+    }
+
+    .instagram:hover {
+      box-shadow: 0 0 20px 5px rgba(225, 48, 108, 0.5);
+      transform: scale(1.05);
+    }
+
+    .result-card {
+      background: rgba(30, 30, 60, 0.8);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .fake-account {
+      border-left: 5px solid #ef4444;
+    }
+
+    .real-account {
+      border-left: 5px solid #10b981;
+    }
+
+    .suspicious-account {
+      border-left: 5px solid #f59e0b;
+    }
+
+    .loading-dots:after {
+      content: '';
+      animation: dots 1.5s infinite;
+    }
+
+    @keyframes dots {
+      0%, 20% { content: '.'; }
+      40% { content: '..'; }
+      60%, 100% { content: '...'; }
+    }
+    
+    .ml-results-preview {
+      background: rgba(30, 30, 60, 0.9);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-left: 5px solid #8b5cf6;
+      transform: translateY(0);
+      transition: all 0.3s ease;
+    }
+    
+    .ml-results-preview.hidden {
+      transform: translateY(-20px);
+      opacity: 0;
+      pointer-events: none;
+    }
+  </style>
+</head>
+<body class="min-h-screen text-white">
+  <canvas id="bgCanvas"></canvas>
+
+  <!-- Header -->
+  <header class="p-6 flex justify-between items-center">
+    <a href="/" class="text-xl font-bold text-purple-400">Fake Account Detector</a>
+    <div class="flex space-x-4">
+      <a href="/" class="px-4 py-2 rounded-lg bg-gray-800 hover:bg-gray-700 transition">Home</a>
+    </div>
+  </header>
+
+  <!-- Main Content -->
+  <main class="container max-w-4xl mx-auto p-6">
+    <div class="text-center mb-12">
+      <h1 class="text-4xl font-extrabold mb-4 text-purple-400">Instagram Account Analysis</h1>
+      <p class="text-gray-300">Enter an Instagram username to check if it's a fake or real account</p>
+    </div>
+
+    <!-- Input Form -->
+    <div class="bg-gray-800/80 p-8 rounded-2xl shadow-xl mb-12">
+      <form id="checkForm" class="flex flex-col md:flex-row gap-4">
+        <input 
+          type="text" 
+          id="usernameInput"
+          placeholder="Enter Instagram username" 
+          class="flex-grow px-6 py-3 bg-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+          required
+        >
+        <button 
+          type="submit" 
+          class="px-8 py-3 bg-purple-600 hover:bg-purple-700 rounded-lg font-semibold transition"
+        >
+          Analyze Account
+        </button>
+      </form>
+    </div>
+
+    <!-- Loading Indicator -->
+    <div id="loading" class="hidden text-center mb-12">
+      <div class="inline-block animate-spin rounded-full h-16 w-16 border-b-2 border-purple-500 mb-4"></div>
+      <p class="text-xl">Analyzing account<span class="loading-dots"></span></p>
+      <p class="text-gray-400 mt-2" id="loadingStatus">Initializing analysis</p>
+    </div>
+    
+    <!-- ML Results Preview -->
+    <div id="mlResultsPreview" class="ml-results-preview hidden rounded-xl p-6 mb-6">
+      <h3 class="text-xl font-semibold mb-4 text-purple-300">Initial Analysis Complete</h3>
+      <div class="flex justify-between items-center">
+        <div>
+          <p class="text-gray-400">Prediction:</p>
+          <p id="preview-ml-prediction" class="text-lg font-bold">-</p>
+        </div>
+        <div class="text-sm text-gray-400">
+          <p id="preview-continue-text">Continuing with image analysis...</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Results Section -->
+    <div id="results" class="hidden">
+      <h2 class="text-2xl font-bold mb-6 text-center">Analysis Results</h2>
+      
+      <!-- Removed Account Information Container -->
+
+      <div class="result-card rounded-xl p-6 mb-6">
+        <h3 class="text-xl font-semibold mb-4">Machine Learning Analysis</h3>
+        <div class="mb-4">
+          <p class="text-gray-400">Prediction:</p>
+          <p id="ml-prediction" class="text-xl font-bold">-</p>
+        </div>
+      </div>
+
+      <div id="image-analysis-section" class="hidden">
+        <div class="result-card rounded-xl p-6 mb-6">
+          <h3 class="text-xl font-semibold mb-4">Reverse Image Analysis</h3>
+          <div id="image-results" class="space-y-4">
+            <!-- Image analysis results will be inserted here -->
+          </div>
+        </div>
+      </div>
+
+      <div class="result-card rounded-xl p-6">
+        <h3 class="text-xl font-semibold mb-4">Final Assessment</h3>
+        <div id="final-assessment" class="text-center p-6 rounded-lg">
+          <p class="text-2xl font-bold">Waiting for analysis...</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Private Account Modal -->
+    <div id="privateAccountModal" class="hidden fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center z-50 p-4">
+      <div class="bg-gray-800 p-8 rounded-xl max-w-2xl w-full">
+        <div class="text-6xl mb-4 text-center">🔒</div>
+        <h2 class="text-2xl font-bold text-purple-400 mb-4 text-center">Private Account Detected</h2>
+        
+        <!-- ML Results in Modal -->
+        <div class="result-card rounded-xl p-6 mb-6">
+          <h3 class="text-xl font-semibold mb-4 text-center">Machine Learning Analysis</h3>
+          <div class="mb-4 text-center">
+            <p class="text-gray-400">Prediction:</p>
+            <p id="private-ml-prediction" class="text-xl font-bold">-</p>
+          </div>
+        </div>
+        
+        <p class="text-gray-300 mb-6 text-center">This account is private, so we can't access posts for reverse image analysis.</p>
+        <p class="text-gray-400 mb-6 text-center">Based on our machine learning analysis of profile data, this account appears to be <span id="private-assessment-text" class="font-semibold">real</span>.</p>
+        
+        <div class="flex justify-center mt-6">
+          <button onclick="closePrivateModal()" class="bg-purple-600 hover:bg-purple-700 text-white px-6 py-2 rounded-lg">
+            Analyze Another Account
+          </button>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    // Background animation code
+    const canvas = document.getElementById("bgCanvas");
+    const ctx = canvas.getContext("2d");
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+
+    class FloatingCaptcha {
+      constructor() {
+        const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+        this.text = Array.from({length: 5}, () => chars[Math.floor(Math.random() * chars.length)]).join(" ");
+        this.x = Math.random() * canvas.width;
+        this.y = Math.random() * canvas.height;
+        this.speed = 0.2 + Math.random() * 0.4;
+        this.opacity = 0.1 + Math.random() * 0.4;
+        this.fontSize = 20 + Math.random() * 12;
+        this.angle = (Math.random() - 0.5) * 0.2;
+      }
+      update() {
+        this.y -= this.speed;
+        if (this.y < -20) {
+          this.y = canvas.height + 20;
+          this.x = Math.random() * canvas.width;
+        }
+      }
+      draw() {
+        ctx.save();
+        ctx.translate(this.x, this.y);
+        ctx.rotate(this.angle);
+        ctx.globalAlpha = this.opacity;
+        ctx.font = `${this.fontSize}px monospace`;
+        ctx.fillStyle = "#ddd";
+        ctx.fillText(this.text, 0, 0);
+        ctx.restore();
+      }
+    }
+
+    class FloatingCheckbox {
+      constructor() {
+        this.x = Math.random() * canvas.width;
+        this.y = Math.random() * canvas.height;
+        this.size = 22;
+        this.state = Math.random() > 0.5 ? "checked" : "failed";
+        this.opacity = 0.2 + Math.random() * 0.5;
+        this.timer = 120 + Math.random() * 200;
+      }
+      update() {
+        this.timer--;
+        if (this.timer <= 0) {
+          this.state = this.state === "checked" ? "failed" : "checked";
+          this.timer = 120 + Math.random() * 200;
+        }
+      }
+      draw() {
+        ctx.save();
+        ctx.globalAlpha = this.opacity;
+        ctx.strokeStyle = "#777";
+        ctx.strokeRect(this.x, this.y, this.size, this.size);
+
+        if (this.state === "checked") {
+          ctx.strokeStyle = "lime";
+          ctx.beginPath();
+          ctx.moveTo(this.x + 4, this.y + this.size/2);
+          ctx.lineTo(this.x + 9, this.y + this.size - 4);
+          ctx.lineTo(this.x + this.size - 4, this.y + 4);
+          ctx.stroke();
+        } else {
+          ctx.strokeStyle = "red";
+          ctx.beginPath();
+          ctx.moveTo(this.x+4, this.y+4);
+          ctx.lineTo(this.x+this.size-4, this.y+this.size-4);
+          ctx.moveTo(this.x+this.size-4, this.y+4);
+          ctx.lineTo(this.x+4, this.y+this.size-4);
+          ctx.stroke();
+        }
+        ctx.restore();
+      }
+    }
+
+    const phrases = ["Are you human?", "Select all traffic lights", "Try again", "Verification failed"];
+    class FloatingText {
+      constructor() {
+        this.text = phrases[Math.floor(Math.random() * phrases.length)];
+        this.x = Math.random() * canvas.width;
+        this.y = Math.random() * canvas.height;
+        this.opacity = 0.05 + Math.random() * 0.1;
+        this.fontSize = 14 + Math.random() * 6;
+      }
+      draw() {
+        ctx.save();
+        ctx.globalAlpha = this.opacity;
+        ctx.font = `${this.fontSize}px 'Inter', sans-serif`;
+        ctx.fillStyle = "#aaa";
+        ctx.fillText(this.text, this.x, this.y);
+        ctx.restore();
+      }
+    }
+
+    const captchas = Array.from({length: 8}, () => new FloatingCaptcha());
+    const checkboxes = Array.from({length: 5}, () => new FloatingCheckbox());
+    const texts = Array.from({length: 6}, () => new FloatingText());
+
+    function animate() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      captchas.forEach(c => { c.update(); c.draw(); });
+      checkboxes.forEach(b => { b.update(); b.draw(); });
+      texts.forEach(t => t.draw());
+
+      requestAnimationFrame(animate);
+    }
+    animate();
+
+    window.addEventListener("resize", () => {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+    });
+
+    // Application logic
+    document.getElementById('checkForm').addEventListener('submit', function(e) {
+      e.preventDefault();
+      const username = document.getElementById('usernameInput').value.trim();
+      if (username) {
+        checkAccount(username);
+      }
+    });
+
+    let eventSource;
+
+    function checkAccount(username) {
+      // Show loading, hide results and preview
+      document.getElementById('loading').classList.remove('hidden');
+      document.getElementById('results').classList.add('hidden');
+      document.getElementById('mlResultsPreview').classList.add('hidden');
+      document.getElementById('privateAccountModal').classList.add('hidden');
+      
+      // Update loading status
+      document.getElementById('loadingStatus').textContent = 'Connecting to server...';
+      
+      // Close existing connection if any
+      if (eventSource) {
+        eventSource.close();
+      }
+      
+      // Create new SSE connection
+      eventSource = new EventSource(`/check/${username}`);
+      
+      eventSource.onmessage = function(event) {
+        const data = JSON.parse(event.data);
+        console.log("Received event:", data);
+        
+        if (data.type === 'ml_result') {
+          // Check if bot is detected
+          if (data.message.prediction === 1) { // Bot detected
+            document.getElementById('loadingStatus').textContent = 'Bot detected. Skipping image analysis.';
+            document.getElementById('preview-continue-text').textContent = 'Bot detected. Skipping image analysis.';
+            
+            // Show ML results preview
+            updateMLPreview(data.message);
+            document.getElementById('mlResultsPreview').classList.remove('hidden');
+            
+            // Update the main results section
+            updateMLResults(data.message);
+            
+            // Skip image analysis and show final results
+            setTimeout(() => {
+              document.getElementById('loading').classList.add('hidden');
+              document.getElementById('mlResultsPreview').classList.add('hidden');
+              document.getElementById('results').classList.remove('hidden');
+              updateFinalAssessment('fake', data.message);
+            }, 1500);
+            
+            eventSource.close();
+          } else {
+            document.getElementById('loadingStatus').textContent = 'Machine learning analysis complete. Checking posts...';
+            document.getElementById('preview-continue-text').textContent = 'Continuing with image analysis...';
+            
+            // Show ML results preview
+            updateMLPreview(data.message);
+            document.getElementById('mlResultsPreview').classList.remove('hidden');
+            
+            // Update the main results section
+            updateMLResults(data.message);
+          }
+        }
+        else if (data.type === 'private_account') {
+          document.getElementById('loading').classList.add('hidden');
+          document.getElementById('mlResultsPreview').classList.add('hidden');
+          showPrivateAccountModal(data.ml_result);
+          eventSource.close();
+        }
+        else if (data.type === 'no_posts') {
+          document.getElementById('loadingStatus').textContent = 'Account has no posts for reverse image analysis';
+          setTimeout(() => {
+            document.getElementById('loading').classList.add('hidden');
+            document.getElementById('mlResultsPreview').classList.add('hidden');
+            document.getElementById('results').classList.remove('hidden');
+            updateFinalAssessment(data.final_assessment, data.ml_result);
+          }, 1000);
+          eventSource.close();
+        }
+        else if (data.type === 'image_analysis') {
+          document.getElementById('loadingStatus').textContent = 'Reverse image analysis complete';
+          setTimeout(() => {
+            document.getElementById('loading').classList.add('hidden');
+            document.getElementById('mlResultsPreview').classList.add('hidden');
+            document.getElementById('results').classList.remove('hidden');
+            updateImageAnalysis(data.image_analysis);
+            updateFinalAssessment(data.final_assessment, data.ml_result, data.image_analysis);
+          }, 1000);
+          eventSource.close();
+        }
+        else if (data.type === 'final_result') {
+          document.getElementById('loading').classList.add('hidden');
+          document.getElementById('mlResultsPreview').classList.add('hidden');
+          document.getElementById('results').classList.remove('hidden');
+          updateFinalAssessment(data.final_assessment, data.ml_result);
+          eventSource.close();
+        }
+        else if (data.type === 'error') {
+          document.getElementById('loading').classList.add('hidden');
+          document.getElementById('mlResultsPreview').classList.add('hidden');
+          alert('Error: ' + data.error);
+          eventSource.close();
+        }
+      };
+      
+      eventSource.onerror = function(err) {
+        console.error("EventSource error:", err);
+        document.getElementById('loading').classList.add('hidden');
+        document.getElementById('mlResultsPreview').classList.add('hidden');
+        eventSource.close();
+      };
+    }
+
+    function updateMLPreview(mlResult) {
+      document.getElementById('preview-ml-prediction').textContent = 
+        mlResult.prediction === 0 ? 'Real Account' : 'Fake Account';
+      document.getElementById('preview-ml-prediction').className = 
+        mlResult.prediction === 0 ? 'text-lg font-bold text-green-500' : 'text-lg font-bold text-red-500';
+      
+
+    }
+
+    function updateMLResults(mlResult) {
+      document.getElementById('ml-prediction').textContent = 
+        mlResult.prediction === 0 ? 'Real Account' : 'Fake Account';
+      document.getElementById('ml-prediction').className = 
+        mlResult.prediction === 0 ? 'text-xl font-bold text-green-500' : 'text-xl font-bold text-red-500';
+      
+    
+    }
+
+    function updatePrivateMLResults(mlResult) {
+      document.getElementById('private-ml-prediction').textContent = 
+        mlResult.prediction === 0 ? 'Real Account' : 'Fake Account';
+      document.getElementById('private-ml-prediction').className = 
+        mlResult.prediction === 0 ? 'text-xl font-bold text-green-500' : 'text-xl font-bold text-red-500';
+      
+   
+      
+      document.getElementById('private-assessment-text').textContent = 
+        mlResult.prediction === 0 ? 'real' : 'fake';
+      document.getElementById('private-assessment-text').className = 
+        mlResult.prediction === 0 ? 'text-green-400' : 'text-red-400';
+    }
+
+    function updateImageAnalysis(imageAnalysis) {
+      const imageResultsContainer = document.getElementById('image-results');
+      imageResultsContainer.innerHTML = '';
+      
+      document.getElementById('image-analysis-section').classList.remove('hidden');
+      
+      if (imageAnalysis.images && imageAnalysis.images.length > 0) {
+        imageAnalysis.images.forEach((img, index) => {
+          const imgElement = document.createElement('div');
+          imgElement.className = 'p-4 bg-gray-700 rounded-lg';
+          imgElement.innerHTML = `
+            <h4 class="font-semibold mb-2">Image ${index + 1}</h4>
+            <div class="mb-2">
+              <img src="${img.url}" alt="Analyzed post" class="rounded-lg max-h-48 mx-auto">
+            </div>
+            <p class="mb-1">Assessment: <span class="font-medium ${getAssessmentColor(img.assessment)}">${img.assessment}</span></p>
+          `;
+          imageResultsContainer.appendChild(imgElement);
+        });
+      }
+      
+      const overallElement = document.createElement('div');
+      overallElement.className = 'mt-4 p-4 bg-gray-700 rounded-lg';
+      overallElement.innerHTML = `
+        <h4 class="font-semibold mb-2">Overall Image Analysis</h4>
+        <p class="mb-1">Assessment: <span class="font-medium ${getAssessmentColor(imageAnalysis.overall_assessment)}">${imageAnalysis.overall_assessment}</span></p>
+        <p>Details: ${imageAnalysis.details || 'No additional details'}</p>
+      `;
+      imageResultsContainer.appendChild(overallElement);
+    }
+
+    function getAssessmentColor(assessment) {
+      if (assessment.includes('real') || assessment.includes('authentic')) {
+        return 'text-green-400';
+      } else if (assessment.includes('fake') || assessment.includes('suspicious')) {
+        return 'text-red-400';
+      } else {
+        return 'text-yellow-400';
+      }
+    }
+
+    function updateFinalAssessment(assessment, mlResult, imageAnalysis = null) {
+      const finalElement = document.getElementById('final-assessment');
+      finalElement.innerHTML = '';
+      
+      let assessmentText = '';
+      let assessmentClass = '';
+      
+      switch(assessment) {
+        case 'fake':
+          assessmentText = 'FAKE ACCOUNT DETECTED';
+          assessmentClass = 'bg-red-500/20 text-red-400 fake-account';
+          break;
+        case 'real_account':
+          assessmentText = 'REAL ACCOUNT DETECTED';
+          assessmentClass = 'bg-green-500/20 text-green-400 real-account';
+          break;
+        case 'real_account_private':
+          assessmentText = 'LIKELY REAL ACCOUNT (Private)';
+          assessmentClass = 'bg-green-500/20 text-green-400 real-account';
+          break;
+        case 'real_account_no_posts':
+          assessmentText = 'LIKELY REAL ACCOUNT (No Posts)';
+          assessmentClass = 'bg-green-500/20 text-green-400 real-account';
+          break;
+        case 'suspicious_impersonator':
+          assessmentText = 'SUSPICIOUS ACCOUNT DETECTED';
+          assessmentClass = 'bg-yellow-500/20 text-yellow-400 suspicious-account';
+          break;
+        default:
+          assessmentText = 'INCONCLUSIVE';
+          assessmentClass = 'bg-gray-500/20 text-gray-400';
+      }
+      
+      const assessmentDiv = document.createElement('div');
+      assessmentDiv.className = assessmentClass;
+      assessmentDiv.innerHTML = `
+        <p class="text-2xl font-bold mb-2">${assessmentText}</p>
+        <p class="mb-4">Based on machine learning analysis${imageAnalysis ? ' and reverse image search' : ''}</p>
+      `;
+      
+      if (mlResult) {
+        const mlDiv = document.createElement('div');
+        mlDiv.className = 'mt-4 p-4 bg-gray-700/50 rounded-lg';
+        mlDiv.innerHTML = `
+          <p class="font-semibold">Machine Learning Analysis:</p>
+          <p>Prediction: ${mlResult.prediction === 0 ? 'Real Account' : 'Fake Account'}</p>
+        `;
+        assessmentDiv.appendChild(mlDiv);
+      }
+      
+      if (imageAnalysis) {
+        const imageDiv = document.createElement('div');
+        imageDiv.className = 'mt-4 p-4 bg-gray-700/50 rounded-lg';
+        imageDiv.innerHTML = `
+          <p class="font-semibold">Image Analysis:</p>
+          <p>Overall Assessment: ${imageAnalysis.overall_assessment}</p>
+          <p>Details: ${imageAnalysis.details || 'No additional details'}</p>
+        `;
+        assessmentDiv.appendChild(imageDiv);
+      }
+      
+      finalElement.appendChild(assessmentDiv);
+    }
+
+    function showPrivateAccountModal(mlResult) {
+      if (mlResult) {
+        updatePrivateMLResults(mlResult);
+      }
+      document.getElementById('privateAccountModal').classList.remove('hidden');
+    }
+
+    function closePrivateModal() {
+      document.getElementById('privateAccountModal').classList.add('hidden');
+      document.getElementById('usernameInput').value = '';
+      document.getElementById('usernameInput').focus();
+    }
+  </script>
+</body>
+</html>

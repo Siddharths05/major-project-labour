@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Bot Failure Theme</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Inter', sans-serif;
+    }
+    #bgCanvas {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: -1;
+      background: radial-gradient(circle at center, #1a002d, #0a0015, #000);
+    }
+
+    /* Social card hover glow */
+    .social-card {
+      transition: transform 0.3s ease, box-shadow 0.3s ease;
+    }
+
+    .instagram:hover {
+      box-shadow: 0 0 20px 5px rgba(225, 48, 108, 0.5); /* pink glow */
+      transform: scale(1.05);
+    }
+
+    .twitter:hover {
+      box-shadow: 0 0 20px 5px rgba(29, 161, 242, 0.5); /* blue glow */
+      transform: scale(1.05);
+    }
+
+    .facebook:hover {
+      box-shadow: 0 0 20px 5px rgba(24, 119, 242, 0.5); /* blue glow */
+      transform: scale(1.05);
+    }
+  </style>
+</head>
+<body class="min-h-screen flex items-center justify-center text-white">
+  <canvas id="bgCanvas"></canvas>
+
+  <!-- Foreground -->
+  <div class="container max-w-5xl text-center bg-gray-900/80 p-10 rounded-2xl shadow-2xl">
+    <h1 class="text-4xl font-extrabold mb-4 text-purple-400">Social Media Fake Account Detector</h1>
+    <p class="mb-12 text-gray-300">Choose a platform to analyze accounts and detect fake/bot profiles</p>
+
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+      <a href="./instagram.html" class="social-card instagram bg-gray-800 p-6 rounded-xl inline-block">
+        <img src="https://cdn-icons-png.flaticon.com/512/2111/2111463.png" alt="Instagram" class="w-16 h-16 mx-auto mb-4">
+        <h2 class="text-2xl font-bold">Instagram</h2>
+        <p class="text-gray-400">Check Instagram accounts for authenticity</p>
+      </a>
+
+      <a href="./twitter.html" class="social-card twitter bg-gray-800 p-6 rounded-xl inline-block">
+        <img src="https://cdn-icons-png.flaticon.com/512/733/733579.png" alt="Twitter" class="w-16 h-16 mx-auto mb-4">
+        <h2 class="text-2xl font-bold">Twitter</h2>
+        <p class="text-gray-400">Analyze Twitter profiles</p>
+      </a>
+
+      <a href="./facebook.html" class="social-card facebook bg-gray-800 p-6 rounded-xl inline-block">
+        <img src="https://cdn-icons-png.flaticon.com/512/733/733547.png" alt="Facebook" class="w-16 h-16 mx-auto mb-4">
+        <h2 class="text-2xl font-bold">Facebook</h2>
+        <p class="text-gray-400">Verify Facebook accounts</p>
+      </a>
+    </div>
+  </div>
+
+  <script>
+    const canvas = document.getElementById("bgCanvas");
+    const ctx = canvas.getContext("2d");
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+
+    // ---------- FLOATING CAPTCHA ----------
+    class FloatingCaptcha {
+      constructor() {
+        const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+        this.text = Array.from({length: 5}, () => chars[Math.floor(Math.random() * chars.length)]).join(" ");
+        this.x = Math.random() * canvas.width;
+        this.y = Math.random() * canvas.height;
+        this.speed = 0.2 + Math.random() * 0.4;
+        this.opacity = 0.1 + Math.random() * 0.4;
+        this.fontSize = 20 + Math.random() * 12;
+        this.angle = (Math.random() - 0.5) * 0.2;
+      }
+      update() {
+        this.y -= this.speed;
+        if (this.y < -20) {
+          this.y = canvas.height + 20;
+          this.x = Math.random() * canvas.width;
+        }
+      }
+      draw() {
+        ctx.save();
+        ctx.translate(this.x, this.y);
+        ctx.rotate(this.angle);
+        ctx.globalAlpha = this.opacity;
+        ctx.font = `${this.fontSize}px monospace`;
+        ctx.fillStyle = "#ddd";
+        ctx.fillText(this.text, 0, 0);
+        ctx.restore();
+      }
+    }
+
+    // ---------- CHECKBOX GLITCH ----------
+    class FloatingCheckbox {
+      constructor() {
+        this.x = Math.random() * canvas.width;
+        this.y = Math.random() * canvas.height;
+        this.size = 22;
+        this.state = Math.random() > 0.5 ? "checked" : "failed";
+        this.opacity = 0.2 + Math.random() * 0.5;
+        this.timer = 120 + Math.random() * 200;
+      }
+      update() {
+        this.timer--;
+        if (this.timer <= 0) {
+          this.state = this.state === "checked" ? "failed" : "checked";
+          this.timer = 120 + Math.random() * 200;
+        }
+      }
+      draw() {
+        ctx.save();
+        ctx.globalAlpha = this.opacity;
+        ctx.strokeStyle = "#777";
+        ctx.strokeRect(this.x, this.y, this.size, this.size);
+
+        if (this.state === "checked") {
+          ctx.strokeStyle = "lime";
+          ctx.beginPath();
+          ctx.moveTo(this.x + 4, this.y + this.size/2);
+          ctx.lineTo(this.x + 9, this.y + this.size - 4);
+          ctx.lineTo(this.x + this.size - 4, this.y + 4);
+          ctx.stroke();
+        } else {
+          ctx.strokeStyle = "red";
+          ctx.beginPath();
+          ctx.moveTo(this.x+4, this.y+4);
+          ctx.lineTo(this.x+this.size-4, this.y+this.size-4);
+          ctx.moveTo(this.x+this.size-4, this.y+4);
+          ctx.lineTo(this.x+4, this.y+this.size-4);
+          ctx.stroke();
+        }
+        ctx.restore();
+      }
+    }
+
+    // ---------- AMBIENT TEXT ----------
+    const phrases = ["Are you human?", "Select all traffic lights", "Try again", "Verification failed"];
+    class FloatingText {
+      constructor() {
+        this.text = phrases[Math.floor(Math.random() * phrases.length)];
+        this.x = Math.random() * canvas.width;
+        this.y = Math.random() * canvas.height;
+        this.opacity = 0.05 + Math.random() * 0.1;
+        this.fontSize = 14 + Math.random() * 6;
+      }
+      draw() {
+        ctx.save();
+        ctx.globalAlpha = this.opacity;
+        ctx.font = `${this.fontSize}px 'Inter', sans-serif`;
+        ctx.fillStyle = "#aaa";
+        ctx.fillText(this.text, this.x, this.y);
+        ctx.restore();
+      }
+    }
+
+    // create objects
+    const captchas = Array.from({length: 8}, () => new FloatingCaptcha());
+    const checkboxes = Array.from({length: 5}, () => new FloatingCheckbox());
+    const texts = Array.from({length: 6}, () => new FloatingText());
+
+    // animation loop
+    function animate() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      captchas.forEach(c => { c.update(); c.draw(); });
+      checkboxes.forEach(b => { b.update(); b.draw(); });
+      texts.forEach(t => t.draw());
+
+      requestAnimationFrame(animate);
+    }
+    animate();
+
+    window.addEventListener("resize", () => {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+    });
+  </script>
+</body>
+</html>
