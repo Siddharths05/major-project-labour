@@ -15,6 +15,10 @@
     "express": "^5.1.0",
     "instagram-private-api": "^1.46.1",
     "instaloader": "^1.0.1",
-    "python-shell": "^5.0.0"
+    "puppeteer": "^24.27.0",
+    "puppeteer-extra": "^3.3.6",
+    "puppeteer-extra-plugin-stealth": "^2.11.2",
+    "python-shell": "^5.0.0",
+    "twitter-lite": "^1.1.0"
   }
 }

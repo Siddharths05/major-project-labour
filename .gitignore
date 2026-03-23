@@ -1,0 +1,16 @@
+.env
+session.json
+session - Copy.json
+facebook.json
+facebook - Copy.json
+facebook - Copy.pkl
+node_modules/
+__pycache__/
+*.pyc
+*- Copy.js
+*- Copy.json
+*- Copy.pkl
+*- Copy.joblib
+ensemble_fake_detection_model - Copy.joblib
+im_lowkey_failing_maj_proj - Copy
+twitter - Copy.joblib
