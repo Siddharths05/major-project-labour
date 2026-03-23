@@ -1,5 +1,6 @@
 .env
 session.json
+- Copy.env
 session - Copy.json
 facebook.json
 facebook - Copy.json
